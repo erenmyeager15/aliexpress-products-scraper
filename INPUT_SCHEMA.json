@@ -1,0 +1,51 @@
+{
+  "title": "AliExpress Products Scraper Input",
+  "description": "Search AliExpress for public product catalog and price data.",
+  "type": "object",
+  "schemaVersion": 1,
+  "required": ["searchQueries"],
+  "properties": {
+    "searchQueries": {
+      "title": "Search queries",
+      "description": "One or more product searches. Duplicate products are removed across queries.",
+      "type": "array",
+      "editor": "stringList",
+      "default": ["wireless earbuds"],
+      "prefill": ["wireless earbuds", "phone case"]
+    },
+    "maxResults": {
+      "title": "Maximum products",
+      "description": "Maximum unique product records saved across all searches.",
+      "type": "integer",
+      "editor": "number",
+      "minimum": 1,
+      "maximum": 500,
+      "default": 50
+    },
+    "maxPagesPerQuery": {
+      "title": "Pages per query",
+      "description": "Maximum AliExpress result pages opened for each query.",
+      "type": "integer",
+      "editor": "number",
+      "minimum": 1,
+      "maximum": 10,
+      "default": 2
+    },
+    "proxyConfiguration": {
+      "title": "Proxy configuration",
+      "description": "Residential US proxies are recommended and used by default because AliExpress blocks direct datacenter traffic.",
+      "type": "object",
+      "editor": "proxy",
+      "default": {
+        "useApifyProxy": true,
+        "apifyProxyGroups": ["RESIDENTIAL"],
+        "apifyProxyCountry": "US"
+      },
+      "prefill": {
+        "useApifyProxy": true,
+        "apifyProxyGroups": ["RESIDENTIAL"],
+        "apifyProxyCountry": "US"
+      }
+    }
+  }
+}

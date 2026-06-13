@@ -1,0 +1,34 @@
+{
+  "actorSpecification": 1,
+  "name": "aliexpress-products-scraper",
+  "title": "AliExpress Products Scraper - Prices & Catalog Data",
+  "description": "Collect public AliExpress product catalog data including titles, prices, discounts, ratings, sold counts, images, store names when available, and product URLs.",
+  "version": "1.0",
+  "dockerfile": "Dockerfile",
+  "input": "../INPUT_SCHEMA.json",
+  "categories": ["ECOMMERCE", "AUTOMATION", "OTHER"],
+  "pricingInfo": {
+    "pricingModel": "PAY_PER_EVENT",
+    "pricingPerEvent": {
+      "actorChargeEvents": {
+        "product-scraped": {
+          "eventTitle": "Product scraped",
+          "eventDescription": "Charged once for each clean AliExpress product saved to the dataset.",
+          "eventPriceUsd": 0.002,
+          "isPrimaryEvent": true,
+          "isOneTimeEvent": false
+        }
+      }
+    }
+  },
+  "storages": {
+    "dataset": "./dataset_schema.json"
+  },
+  "defaultRunOptions": {
+    "build": "latest",
+    "memoryMbytes": 4096,
+    "timeoutSecs": 43200
+  },
+  "minMemoryMbytes": 2048,
+  "maxMemoryMbytes": 8192
+}
