@@ -24,6 +24,7 @@ const proxyConfiguration = await Actor.createProxyConfiguration(
 
 const seenProductIds = new Set<string>();
 let savedCount = 0;
+let spendingLimitReached = false;
 
 const requests = searchQueries.flatMap((searchQuery) => Array.from(
     { length: maxPagesPerQuery },
@@ -61,7 +62,7 @@ const crawler = new PlaywrightCrawler({
         await page.waitForTimeout(1_000 + Math.floor(Math.random() * 2_000));
     }],
     requestHandler: async ({ page, request, session }) => {
-        if (savedCount >= maxResults) return;
+        if (savedCount >= maxResults || spendingLimitReached) return;
 
         const { searchQuery, pageNumber } = request.userData as RequestData;
         await page.waitForSelector('a.search-card-item[href*="/item/"]', { timeout: 60_000 }).catch(() => null);
@@ -80,13 +81,21 @@ const crawler = new PlaywrightCrawler({
         }
 
         for (const product of products) {
-            if (savedCount >= maxResults) break;
+            if (savedCount >= maxResults || spendingLimitReached) break;
             if (seenProductIds.has(product.productId)) continue;
 
             seenProductIds.add(product.productId);
             await Actor.pushData(product);
-            await Actor.charge({ eventName: 'product-scraped' });
+            const chargeResult = await Actor.charge({ eventName: 'product-scraped' });
             savedCount += 1;
+
+            if (chargeResult.eventChargeLimitReached) {
+                spendingLimitReached = true;
+                await Actor.setStatusMessage(`Stopped at the user's spending limit after ${savedCount} products`);
+                log.info('User spending limit reached; stopping before more requests are made.');
+                await crawler.autoscaledPool?.abort();
+                break;
+            }
         }
 
         await Actor.setStatusMessage(`Saved ${savedCount}/${maxResults} AliExpress products`);
