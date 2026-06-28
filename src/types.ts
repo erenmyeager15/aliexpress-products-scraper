@@ -13,19 +13,23 @@ export interface ActorInput {
 }
 
 export interface ProductRecord {
+    source: 'aliexpress';
     searchQuery: string;
     position: number;
-    productId: string;
+    productId: string | null;
     title: string;
+    brand: string;
     price: number;
-    originalPrice: number | null;
+    mrp: number | null;
     discountPercent: number | null;
     currency: string;
+    packSize: string;
+    category: string;
     rating: number | null;
-    ordersCount: number | null;
-    storeName: string | null;
+    ratingCount: number | null;
+    inStock: boolean | null;
+    productUrl: string | null;
     imageUrl: string | null;
-    productUrl: string;
     scrapedAt: string;
 }
 

@@ -80,8 +80,11 @@ function currencyFrom(value: string | null): string {
 
 function normalizeUrl(value: string | null): string | null {
     if (!value) return null;
-    if (value.startsWith('//')) return `https:${value}`;
-    return value;
+    const trimmed = value.trim();
+    if (!trimmed || trimmed === 'Proxied content') return null;
+    if (trimmed.startsWith('//')) return `https:${trimmed}`;
+    if (trimmed.startsWith('http://')) return `https://${trimmed.slice('http://'.length)}`;
+    return trimmed;
 }
 
 function productIdFromUrl(value: string): string | null {
@@ -168,19 +171,23 @@ export async function extractProducts(
         if (originalPrice !== null && discountPercent !== null && discountPercent > 0 && price >= originalPrice) continue;
 
         records.push({
+            source: 'aliexpress',
             searchQuery,
             position: ((pageNumber - 1) * Math.max(rawProducts.length, 1)) + index + 1,
             productId,
             title,
+            brand: 'N/A',
             price,
-            originalPrice,
+            mrp: originalPrice,
             discountPercent,
             currency: currencyFrom(raw.priceText),
+            packSize: 'N/A',
+            category: 'N/A',
             rating: parseRating(raw.ratingText),
-            ordersCount: parseOrders(raw.ordersText),
-            storeName: raw.storeName ? redactSensitiveText(raw.storeName) : null,
-            imageUrl: normalizeUrl(raw.imageUrl),
+            ratingCount: null,
+            inStock: null,
             productUrl: `https://www.aliexpress.com/item/${productId}.html`,
+            imageUrl: normalizeUrl(raw.imageUrl),
             scrapedAt: new Date().toISOString(),
         });
     }

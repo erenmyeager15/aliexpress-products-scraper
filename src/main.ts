@@ -7,8 +7,8 @@ await Actor.init();
 
 const input = (await Actor.getInput<ActorInput>()) ?? { searchQueries: ['wireless earbuds'] };
 const searchQueries = [...new Set((input.searchQueries ?? []).map((query) => query.trim()).filter(Boolean))];
-const maxResults = Math.min(Math.max(input.maxResults ?? 50, 1), 500);
-const maxPagesPerQuery = Math.min(Math.max(input.maxPagesPerQuery ?? 2, 1), 10);
+const maxResults = Math.min(Math.max(input.maxResults ?? 10, 1), 500);
+const maxPagesPerQuery = Math.min(Math.max(input.maxPagesPerQuery ?? 1, 1), 10);
 
 if (searchQueries.length === 0) {
     throw new Error('Provide at least one non-empty search query.');
@@ -25,6 +25,8 @@ const proxyConfiguration = await Actor.createProxyConfiguration(
 const seenProductIds = new Set<string>();
 let savedCount = 0;
 let spendingLimitReached = false;
+let billingError: Error | null = null;
+let failedRequestCount = 0;
 
 const requests = searchQueries.flatMap((searchQuery) => Array.from(
     { length: maxPagesPerQuery },
@@ -40,6 +42,7 @@ const crawler = new PlaywrightCrawler({
     maxConcurrency: 2,
     minConcurrency: 1,
     maxRequestRetries: 3,
+    maxSessionRotations: 3,
     retryOnBlocked: true,
     navigationTimeoutSecs: 90,
     requestHandlerTimeoutSecs: 180,
@@ -82,12 +85,27 @@ const crawler = new PlaywrightCrawler({
 
         for (const product of products) {
             if (savedCount >= maxResults || spendingLimitReached) break;
-            if (seenProductIds.has(product.productId)) continue;
+            const seenKey = product.productId ?? product.productUrl ?? `${product.source}:${product.searchQuery}:${product.position}:${product.title}`;
+            if (seenProductIds.has(seenKey)) continue;
 
-            seenProductIds.add(product.productId);
-            await Actor.pushData(product);
-            const chargeResult = await Actor.charge({ eventName: 'product-scraped' });
-            savedCount += 1;
+            let chargeResult;
+            try {
+                // Push and charge together. The SDK omits records that would exceed
+                // the user's maximum charge, preventing unbilled scraping work.
+                chargeResult = await Actor.pushData(product, 'product-scraped');
+            } catch (error) {
+                billingError = new Error(`Unable to save and charge for product: ${String(error)}`);
+                spendingLimitReached = true;
+                log.error(billingError.message);
+                await crawler.autoscaledPool?.abort();
+                break;
+            }
+
+            const recordWasSaved = chargeResult.chargedCount > 0 || !chargeResult.eventChargeLimitReached;
+            if (recordWasSaved) {
+                seenProductIds.add(seenKey);
+                savedCount += 1;
+            }
 
             if (chargeResult.eventChargeLimitReached) {
                 spendingLimitReached = true;
@@ -102,11 +120,21 @@ const crawler = new PlaywrightCrawler({
         log.info(`Processed "${searchQuery}" page ${pageNumber}: ${products.length} cards, ${savedCount} total saved.`);
     },
     failedRequestHandler: async ({ request }, error) => {
+        failedRequestCount += 1;
         log.error(`AliExpress request failed after retries: ${request.url}`, { error: String(error) });
     },
 });
 
 await crawler.run(requests);
+
+if (billingError) {
+    throw billingError;
+}
+
+if (savedCount === 0 && failedRequestCount === requests.length) {
+    throw new Error(`All ${failedRequestCount} AliExpress requests failed; no products were saved.`);
+}
+
 await Actor.setStatusMessage(`Finished with ${savedCount} unique products`);
 log.info(`AliExpress scrape finished with ${savedCount} unique products.`);
 

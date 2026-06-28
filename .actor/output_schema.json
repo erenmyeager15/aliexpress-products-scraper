@@ -1,0 +1,14 @@
+{
+  "actorOutputSchemaVersion": 1,
+  "title": "AliExpress Products Scraper Output",
+  "description": "Structured AliExpress product records with search queries, positions, product IDs, titles, brands, prices, discounts, ratings, availability, image URLs, product URLs, and scraped timestamps.",
+  "type": "object",
+  "properties": {
+    "results": {
+      "type": "string",
+      "title": "AliExpress product records",
+      "description": "Clean dataset items containing public AliExpress product catalog, price, discount, rating, availability, image, and URL data.",
+      "template": "{{links.apiDefaultDatasetUrl}}/items"
+    }
+  }
+}

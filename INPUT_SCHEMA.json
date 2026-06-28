@@ -1,13 +1,13 @@
 {
   "title": "AliExpress Products Scraper Input",
-  "description": "Search AliExpress for public product catalog and price data.",
+  "description": "Search AliExpress for public product catalog and price data. For a low-cost test, use one query, maxResults 5-10, maxPagesPerQuery 1, and residential proxy.",
   "type": "object",
   "schemaVersion": 1,
   "required": ["searchQueries"],
   "properties": {
     "searchQueries": {
       "title": "Search queries",
-      "description": "One or more product searches. Duplicate products are removed across queries.",
+      "description": "One or more product searches. Start with one query for a low-cost test. Duplicate products are removed across queries.",
       "type": "array",
       "editor": "stringList",
       "default": ["wireless earbuds"],
@@ -15,25 +15,25 @@
     },
     "maxResults": {
       "title": "Maximum products",
-      "description": "Maximum unique product records saved across all searches.",
+      "description": "Maximum unique product records saved across all searches. Use 5-10 for test runs; increase only after results look correct.",
       "type": "integer",
       "editor": "number",
       "minimum": 1,
       "maximum": 500,
-      "default": 50
+      "default": 10
     },
     "maxPagesPerQuery": {
       "title": "Pages per query",
-      "description": "Maximum AliExpress result pages opened for each query.",
+      "description": "Maximum AliExpress result pages opened for each query. Use 1 page for test runs to control proxy and compute usage.",
       "type": "integer",
       "editor": "number",
       "minimum": 1,
       "maximum": 10,
-      "default": 2
+      "default": 1
     },
     "proxyConfiguration": {
       "title": "Proxy configuration",
-      "description": "Residential US proxies are recommended and used by default because AliExpress blocks direct datacenter traffic.",
+      "description": "Residential US proxies are recommended because AliExpress blocks direct/datacenter traffic. Proxy traffic is billed as platform usage.",
       "type": "object",
       "editor": "proxy",
       "default": {

@@ -3,19 +3,23 @@
   "fields": {
     "type": "object",
     "properties": {
-      "searchQuery": { "type": "string", "title": "Search query" },
+      "source": { "type": "string", "title": "Source" },
+      "searchQuery": { "type": "string", "title": "Search" },
       "position": { "type": "integer", "title": "Position" },
-      "productId": { "type": "string", "title": "Product ID" },
+      "productId": { "type": ["string", "null"], "title": "Product ID" },
       "title": { "type": "string", "title": "Title" },
-      "price": { "type": "number", "title": "Price" },
-      "originalPrice": { "type": ["number", "null"], "title": "Original price" },
-      "discountPercent": { "type": ["integer", "null"], "title": "Discount %" },
+      "brand": { "type": "string", "title": "Brand" },
+      "price": { "type": ["number", "null"], "title": "Price" },
+      "mrp": { "type": ["number", "null"], "title": "MRP" },
+      "discountPercent": { "type": ["number", "null"], "title": "Discount %" },
       "currency": { "type": "string", "title": "Currency" },
+      "packSize": { "type": "string", "title": "Pack size" },
+      "category": { "type": "string", "title": "Category" },
       "rating": { "type": ["number", "null"], "title": "Rating" },
-      "ordersCount": { "type": ["integer", "null"], "title": "Orders" },
-      "storeName": { "type": ["string", "null"], "title": "Store" },
+      "ratingCount": { "type": ["number", "null"], "title": "Ratings" },
+      "inStock": { "type": ["boolean", "null"], "title": "In stock" },
+      "productUrl": { "type": ["string", "null"], "title": "Product URL" },
       "imageUrl": { "type": ["string", "null"], "title": "Image" },
-      "productUrl": { "type": "string", "title": "Product URL" },
       "scrapedAt": { "type": "string", "title": "Scraped at" }
     }
   },
@@ -23,25 +27,48 @@
     "products": {
       "title": "Products",
       "transformation": {
-        "fields": ["imageUrl", "searchQuery", "position", "productId", "title", "price", "originalPrice", "discountPercent", "currency", "rating", "ordersCount", "storeName", "productUrl", "scrapedAt"]
+        "fields": [
+          "source",
+          "searchQuery",
+          "position",
+          "productId",
+          "title",
+          "brand",
+          "price",
+          "mrp",
+          "discountPercent",
+          "currency",
+          "packSize",
+          "category",
+          "rating",
+          "ratingCount",
+          "inStock",
+          "productUrl",
+          "imageUrl",
+          "scrapedAt"
+        ]
       },
       "display": {
         "component": "table",
         "properties": {
-          "imageUrl": { "label": "Image", "format": "image" },
+          "source": { "label": "Source", "format": "text" },
           "searchQuery": { "label": "Search", "format": "text" },
           "position": { "label": "Position", "format": "number" },
           "productId": { "label": "Product ID", "format": "text" },
-          "title": { "label": "Product", "format": "text" },
+          "title": { "label": "Title", "format": "text" },
+          "brand": { "label": "Brand", "format": "text" },
           "price": { "label": "Price", "format": "number" },
-          "originalPrice": { "label": "Original Price", "format": "number" },
+          "mrp": { "label": "MRP", "format": "number" },
           "discountPercent": { "label": "Discount %", "format": "number" },
           "currency": { "label": "Currency", "format": "text" },
+          "packSize": { "label": "Pack size", "format": "text" },
+          "category": { "label": "Category", "format": "text" },
           "rating": { "label": "Rating", "format": "number" },
-          "ordersCount": { "label": "Orders", "format": "number" },
-          "storeName": { "label": "Store", "format": "text" },
-          "productUrl": { "label": "URL", "format": "link" },
-          "scrapedAt": { "label": "Scraped At", "format": "date" }
+          "ratingCount": { "label": "Ratings", "format": "number" },
+          "inStock": { "label": "In stock", "format": "boolean" },
+          "productUrl": { "label": "Product URL", "format": "link" },
+          "imageUrl": { "label": "Image", "format": "image" },
+          "scrapedAt": { "label": "Scraped at", "format": "date" }
         }
       }
     }
