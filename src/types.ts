@@ -6,10 +6,17 @@ export interface ProxyInput {
 }
 
 export interface ActorInput {
-    searchQueries: string[];
+    searchQueries?: string[];
     maxResults?: number;
     maxPagesPerQuery?: number;
     proxyConfiguration?: ProxyInput;
+}
+
+export interface NormalizedInput {
+    searchQueries: string[];
+    maxResults: number;
+    maxPagesPerQuery: number;
+    proxyConfiguration: ProxyInput;
 }
 
 export interface ProductRecord {
@@ -27,6 +34,7 @@ export interface ProductRecord {
     category: string;
     rating: number | null;
     ratingCount: number | null;
+    soldCount: number | null;
     inStock: boolean | null;
     productUrl: string | null;
     imageUrl: string | null;

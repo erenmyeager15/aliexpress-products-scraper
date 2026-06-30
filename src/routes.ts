@@ -34,7 +34,7 @@ export function buildSearchUrl(query: string, pageNumber: number): string {
     return `https://www.aliexpress.com/w/wholesale-${slug}.html?${params.toString()}`;
 }
 
-function parseMoney(value: string | null): number | null {
+export function parseMoney(value: string | null): number | null {
     if (!value) return null;
     const normalized = value.replace(/\u00a0/g, ' ').trim();
     const currencyAmount = normalized.match(
@@ -46,18 +46,18 @@ function parseMoney(value: string | null): number | null {
     return Number.isFinite(parsed) ? parsed : null;
 }
 
-function parseDiscount(value: string | null): number | null {
+export function parseDiscount(value: string | null): number | null {
     const match = value?.match(/(\d{1,3})\s*%/);
     return match ? Number.parseInt(match[1], 10) : null;
 }
 
-function parseRating(value: string | null): number | null {
+export function parseRating(value: string | null): number | null {
     if (!value) return null;
     const parsed = Number.parseFloat(value);
     return Number.isFinite(parsed) && parsed >= 0 && parsed <= 5 ? parsed : null;
 }
 
-function parseOrders(value: string | null): number | null {
+export function parseOrders(value: string | null): number | null {
     if (!value) return null;
     const match = value.replace(/,/g, '').match(/([\d.]+)\s*([km])?/i);
     if (!match) return null;
@@ -68,17 +68,17 @@ function parseOrders(value: string | null): number | null {
     return Math.round(count);
 }
 
-function currencyFrom(value: string | null): string {
+export function currencyFrom(value: string | null): string {
     if (!value) return 'USD';
-    if (value.includes('€')) return 'EUR';
-    if (value.includes('£')) return 'GBP';
-    if (value.includes('₹')) return 'INR';
     if (value.includes('CA$')) return 'CAD';
     if (value.includes('AU$')) return 'AUD';
+    if (/\u20ac|EUR/i.test(value)) return 'EUR';
+    if (/\u00a3|GBP/i.test(value)) return 'GBP';
+    if (/\u20b9|INR|\bRs\.?\b/i.test(value)) return 'INR';
     return 'USD';
 }
 
-function normalizeUrl(value: string | null): string | null {
+export function normalizeUrl(value: string | null): string | null {
     if (!value) return null;
     const trimmed = value.trim();
     if (!trimmed || trimmed === 'Proxied content') return null;
@@ -87,7 +87,7 @@ function normalizeUrl(value: string | null): string | null {
     return trimmed;
 }
 
-function productIdFromUrl(value: string): string | null {
+export function productIdFromUrl(value: string): string | null {
     return value.match(/\/item\/(\d+)\.html/i)?.[1] ?? null;
 }
 
@@ -120,8 +120,6 @@ export async function extractProducts(
                 || card.querySelector<HTMLImageElement>('img[alt]')?.alt
                 || '';
 
-            const priceRoot = [...card.querySelectorAll<HTMLElement>('[aria-label]')]
-                .find((element) => /(?:US\s*)?[$€£₹]\s*\d|\d[.,]\d/.test(element.getAttribute('aria-label') ?? ''));
             const strictPriceRoot = [...card.querySelectorAll<HTMLElement>('[aria-label]')]
                 .find((element) => /^(?:US\s*)?(?:CA\$|AU\$|[$\u20ac\u00a3\u20b9])\s*\d/i
                     .test(element.getAttribute('aria-label')?.trim() ?? ''));
@@ -185,6 +183,7 @@ export async function extractProducts(
             category: 'N/A',
             rating: parseRating(raw.ratingText),
             ratingCount: null,
+            soldCount: parseOrders(raw.ordersText),
             inStock: null,
             productUrl: `https://www.aliexpress.com/item/${productId}.html`,
             imageUrl: normalizeUrl(raw.imageUrl),

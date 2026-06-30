@@ -1,6 +1,6 @@
 {
   "searchQueries": ["wireless earbuds"],
-  "maxResults": 5,
+  "maxResults": 1,
   "maxPagesPerQuery": 1,
   "proxyConfiguration": {
     "useApifyProxy": true,

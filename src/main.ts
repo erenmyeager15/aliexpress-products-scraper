@@ -1,26 +1,13 @@
 import { Actor, log } from 'apify';
 import { PlaywrightCrawler } from 'crawlee';
+import { normalizeInput } from './input.js';
 import { buildSearchUrl, extractProducts, isBlockedPage, scrollSearchResults } from './routes.js';
 import type { ActorInput, RequestData } from './types.js';
 
 await Actor.init();
 
-const input = (await Actor.getInput<ActorInput>()) ?? { searchQueries: ['wireless earbuds'] };
-const searchQueries = [...new Set((input.searchQueries ?? []).map((query) => query.trim()).filter(Boolean))];
-const maxResults = Math.min(Math.max(input.maxResults ?? 10, 1), 500);
-const maxPagesPerQuery = Math.min(Math.max(input.maxPagesPerQuery ?? 1, 1), 10);
-
-if (searchQueries.length === 0) {
-    throw new Error('Provide at least one non-empty search query.');
-}
-
-const proxyConfiguration = await Actor.createProxyConfiguration(
-    input.proxyConfiguration ?? {
-        useApifyProxy: true,
-        apifyProxyGroups: ['RESIDENTIAL'],
-        apifyProxyCountry: 'US',
-    },
-);
+const input = normalizeInput((await Actor.getInput<ActorInput>()) ?? {});
+const proxyConfiguration = await Actor.createProxyConfiguration(input.proxyConfiguration);
 
 const seenProductIds = new Set<string>();
 let savedCount = 0;
@@ -28,8 +15,8 @@ let spendingLimitReached = false;
 let billingError: Error | null = null;
 let failedRequestCount = 0;
 
-const requests = searchQueries.flatMap((searchQuery) => Array.from(
-    { length: maxPagesPerQuery },
+const requests = input.searchQueries.flatMap((searchQuery) => Array.from(
+    { length: input.maxPagesPerQuery },
     (_, index) => ({
         url: buildSearchUrl(searchQuery, index + 1),
         userData: { searchQuery, pageNumber: index + 1 } satisfies RequestData,
@@ -65,7 +52,7 @@ const crawler = new PlaywrightCrawler({
         await page.waitForTimeout(1_000 + Math.floor(Math.random() * 2_000));
     }],
     requestHandler: async ({ page, request, session }) => {
-        if (savedCount >= maxResults || spendingLimitReached) return;
+        if (savedCount >= input.maxResults || spendingLimitReached) return;
 
         const { searchQuery, pageNumber } = request.userData as RequestData;
         await page.waitForSelector('a.search-card-item[href*="/item/"]', { timeout: 60_000 }).catch(() => null);
@@ -84,7 +71,7 @@ const crawler = new PlaywrightCrawler({
         }
 
         for (const product of products) {
-            if (savedCount >= maxResults || spendingLimitReached) break;
+            if (savedCount >= input.maxResults || spendingLimitReached) break;
             const seenKey = product.productId ?? product.productUrl ?? `${product.source}:${product.searchQuery}:${product.position}:${product.title}`;
             if (seenProductIds.has(seenKey)) continue;
 
@@ -116,7 +103,7 @@ const crawler = new PlaywrightCrawler({
             }
         }
 
-        await Actor.setStatusMessage(`Saved ${savedCount}/${maxResults} AliExpress products`);
+        await Actor.setStatusMessage(`Saved ${savedCount}/${input.maxResults} AliExpress products`);
         log.info(`Processed "${searchQuery}" page ${pageNumber}: ${products.length} cards, ${savedCount} total saved.`);
     },
     failedRequestHandler: async ({ request }, error) => {
@@ -133,6 +120,10 @@ if (billingError) {
 
 if (savedCount === 0 && failedRequestCount === requests.length) {
     throw new Error(`All ${failedRequestCount} AliExpress requests failed; no products were saved.`);
+}
+
+if (savedCount === 0 && !spendingLimitReached) {
+    throw new Error('No AliExpress product records were scraped. Try a broader search query or check proxy access.');
 }
 
 await Actor.setStatusMessage(`Finished with ${savedCount} unique products`);

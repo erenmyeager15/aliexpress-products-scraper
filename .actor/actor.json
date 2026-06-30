@@ -1,27 +1,30 @@
 {
   "actorSpecification": 1,
   "name": "aliexpress-products-scraper",
-  "title": "AliExpress Products Scraper - Prices & Catalog Data",
-  "description": "Collect public AliExpress product catalog data including titles, prices, discounts, ratings, sold counts, images, store names when available, and product URLs.",
+  "title": "AliExpress Product Scraper: Prices & Discounts",
+  "description": "Scrape public AliExpress product search results, including product titles, prices, MRP, discounts, ratings, sold counts, images, and product URLs.",
   "version": "1.0",
+  "buildTag": "latest",
   "dockerfile": "Dockerfile",
   "input": "../INPUT_SCHEMA.json",
+  "readme": "../README.md",
   "output": "./output_schema.json",
   "categories": ["ECOMMERCE", "AUTOMATION", "OTHER"],
+  "categoriesVersion": "1.0.0",
   "pricingInfo": {
     "pricingModel": "PAY_PER_EVENT",
     "pricingPerEvent": {
       "actorChargeEvents": {
         "apify-actor-start": {
-          "eventTitle": "Actor start",
-          "eventDescription": "Charged when the run starts to cover browser startup and the residential proxy session. Number of events depends on memory (one per GB, minimum one).",
+          "eventTitle": "Actor Start",
+          "eventDescription": "Charged when the Actor starts running. Number of events charged depends on Actor memory (one event per GB, minimum one event).",
           "eventPriceUsd": 0.001,
           "isPrimaryEvent": false,
           "isOneTimeEvent": true
         },
         "product-scraped": {
           "eventTitle": "Product scraped",
-          "eventDescription": "Charged once for each clean AliExpress product saved to the dataset.",
+          "eventDescription": "Charged for each AliExpress product saved to the dataset.",
           "eventPriceUsd": 0.003,
           "isPrimaryEvent": true,
           "isOneTimeEvent": false
@@ -32,11 +35,15 @@
   "storages": {
     "dataset": "./dataset_schema.json"
   },
+  "exampleRunInput": {
+    "body": "{\"searchQueries\":[\"wireless earbuds\"],\"maxResults\":1,\"maxPagesPerQuery\":1,\"proxyConfiguration\":{\"useApifyProxy\":true,\"apifyProxyGroups\":[\"RESIDENTIAL\"],\"apifyProxyCountry\":\"US\"}}",
+    "contentType": "application/json; charset=utf-8"
+  },
   "defaultRunOptions": {
     "build": "latest",
     "memoryMbytes": 2048,
     "timeoutSecs": 3600
   },
   "minMemoryMbytes": 2048,
-  "maxMemoryMbytes": 8192
+  "maxMemoryMbytes": 4096
 }
