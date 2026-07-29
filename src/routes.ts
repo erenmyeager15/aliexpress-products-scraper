@@ -91,10 +91,19 @@ export function productIdFromUrl(value: string): string | null {
     return value.match(/\/item\/(\d+)\.html/i)?.[1] ?? null;
 }
 
-export async function scrollSearchResults(page: Page): Promise<void> {
-    for (let attempt = 0; attempt < 8; attempt += 1) {
+export async function scrollSearchResults(page: Page, targetCount: number): Promise<void> {
+    let previousCount = await page.locator('a.search-card-item[href*="/item/"]').count();
+    if (previousCount >= targetCount) return;
+
+    let unchangedAttempts = 0;
+    for (let attempt = 0; attempt < 6; attempt += 1) {
         await page.evaluate(() => window.scrollBy(0, Math.max(window.innerHeight * 1.8, 1200)));
-        await page.waitForTimeout(900 + Math.floor(Math.random() * 700));
+        await page.waitForTimeout(500 + Math.floor(Math.random() * 300));
+        const currentCount = await page.locator('a.search-card-item[href*="/item/"]').count();
+        if (currentCount >= targetCount) break;
+        unchangedAttempts = currentCount === previousCount ? unchangedAttempts + 1 : 0;
+        if (unchangedAttempts >= 2) break;
+        previousCount = currentCount;
     }
     await page.evaluate(() => window.scrollTo(0, 0));
 }

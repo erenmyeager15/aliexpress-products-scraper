@@ -12,6 +12,7 @@ import {
     parseOrders,
     productIdFromUrl,
     redactSensitiveText,
+    scrollSearchResults,
 } from './routes.js';
 
 test('normalizes input defaults and clamps numeric limits', () => {
@@ -97,4 +98,21 @@ test('extracts clean product records from rendered cards', async () => {
     assert.equal(records[0].soldCount, 1200);
     assert.equal(records[0].productUrl, 'https://www.aliexpress.com/item/3256812072210872.html');
     assert.equal(records[0].imageUrl, 'https://ae-pic-a1.aliexpress-media.com/kf/example.jpg');
+});
+
+test('skips scrolling when enough product cards are already rendered', async () => {
+    let evaluateCalls = 0;
+    const page = {
+        locator: () => ({
+            count: async () => 5,
+        }),
+        evaluate: async () => {
+            evaluateCalls += 1;
+        },
+        waitForTimeout: async () => undefined,
+    } as unknown as Page;
+
+    await scrollSearchResults(page, 3);
+
+    assert.equal(evaluateCalls, 0);
 });

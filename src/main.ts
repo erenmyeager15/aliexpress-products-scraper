@@ -25,17 +25,17 @@ const requests = input.searchQueries.flatMap((searchQuery) => Array.from(
 
 const crawler = new PlaywrightCrawler({
     proxyConfiguration,
-    headless: false,
-    maxConcurrency: 2,
+    headless: true,
+    maxConcurrency: 1,
     minConcurrency: 1,
-    maxRequestRetries: 3,
-    maxSessionRotations: 3,
+    maxRequestRetries: 2,
+    maxSessionRotations: 2,
     retryOnBlocked: true,
-    navigationTimeoutSecs: 90,
-    requestHandlerTimeoutSecs: 180,
+    navigationTimeoutSecs: 60,
+    requestHandlerTimeoutSecs: 120,
     maxRequestsPerCrawl: requests.length,
     sessionPoolOptions: {
-        maxPoolSize: 30,
+        maxPoolSize: 10,
         blockedStatusCodes: [],
         sessionOptions: { maxUsageCount: 10 },
     },
@@ -49,20 +49,27 @@ const crawler = new PlaywrightCrawler({
     preNavigationHooks: [async ({ page }, gotoOptions) => {
         page.setDefaultTimeout(12_000);
         if (gotoOptions) gotoOptions.waitUntil = 'domcontentloaded';
-        await page.waitForTimeout(1_000 + Math.floor(Math.random() * 2_000));
+        await page.route('**/*', async (route) => {
+            const resourceType = route.request().resourceType();
+            if (resourceType === 'image' || resourceType === 'media' || resourceType === 'font') {
+                await route.abort();
+                return;
+            }
+            await route.continue();
+        }).catch(() => undefined);
     }],
     requestHandler: async ({ page, request, session }) => {
         if (savedCount >= input.maxResults || spendingLimitReached) return;
 
         const { searchQuery, pageNumber } = request.userData as RequestData;
-        await page.waitForSelector('a.search-card-item[href*="/item/"]', { timeout: 60_000 }).catch(() => null);
+        await page.waitForSelector('a.search-card-item[href*="/item/"]', { timeout: 30_000 }).catch(() => null);
 
         if (await isBlockedPage(page)) {
             session?.markBad();
             throw new Error(`AliExpress challenge page detected for ${request.url}`);
         }
 
-        await scrollSearchResults(page);
+        await scrollSearchResults(page, Math.max(1, input.maxResults - savedCount));
         const products = await extractProducts(page, searchQuery, pageNumber);
         if (products.length === 0) {
             if (pageNumber === 1) throw new Error(`No product cards found for "${searchQuery}".`);
