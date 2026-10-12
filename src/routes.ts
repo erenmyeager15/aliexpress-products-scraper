@@ -1,204 +1,59 @@
-import type { Page } from 'playwright';
-import type { ProductRecord } from './types.js';
-
-interface RawProduct {
-    href: string;
-    title: string;
-    priceText: string | null;
-    originalPriceText: string | null;
-    discountText: string | null;
-    ratingText: string | null;
-    ordersText: string | null;
-    storeName: string | null;
-    imageUrl: string | null;
-}
-
-const EMAIL_PATTERN = /\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi;
-const PHONE_PATTERN = /(?<!\w)(?:\+?\d[\s().-]*){9,}(?!\w)/g;
-
+// Offline value/URL safety only. There is deliberately no browser, fetch or scraping route.
 export function redactSensitiveText(value: string): string {
-    return value
-        .replace(EMAIL_PATTERN, '[redacted]')
-        .replace(PHONE_PATTERN, '[redacted]')
-        .replace(/\s+/g, ' ')
-        .trim();
+    return value.replace(/\b[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}\b/gi, '[redacted]')
+        .replace(/(?<!\w)(?:\+?\d[\s().-]*){9,}(?!\w)/g, '[redacted]')
+        .replace(/\b(?:api[-_ ]?key|token|password|secret|authorization|cookie)\s*[:=]\s*\S+/gi, '[redacted]')
+        .replace(/\bBearer\s+[A-Za-z0-9._~+\/-]+=*/gi, '[redacted]')
+        .replace(/[\u0000-\u001f\u007f]/g, ' ').replace(/\s+/g, ' ').trim();
 }
 
-export function buildSearchUrl(query: string, pageNumber: number): string {
-    const slug = query
-        .toLowerCase()
-        .replace(/[^a-z0-9]+/g, '-')
-        .replace(/^-+|-+$/g, '') || 'products';
-    const params = new URLSearchParams({ SearchText: query });
-    if (pageNumber > 1) params.set('page', String(pageNumber));
-    return `https://www.aliexpress.com/w/wholesale-${slug}.html?${params.toString()}`;
+/** Strict scalar parser. Reject ranges, signs, formulae, units and ambiguous grouping. */
+export function parseNumber(value: unknown, minimum = 0, maximum = 1_000_000_000, integer = false): number | null {
+    let number: number;
+    if (typeof value === 'number') number = value;
+    else if (typeof value === 'string') {
+        const text = value.trim();
+        if (!/^(?:\d+|\d{1,3}(?:,\d{3})+)(?:\.\d+)?$/.test(text)) return null;
+        number = Number(text.replaceAll(',', ''));
+    } else return null;
+    return Number.isFinite(number) && number >= minimum && number <= maximum
+        && (!integer || Number.isSafeInteger(number)) ? number : null;
 }
 
-export function parseMoney(value: string | null): number | null {
-    if (!value) return null;
-    const normalized = value.replace(/\u00a0/g, ' ').trim();
-    const currencyAmount = normalized.match(
-        /(?:US\s*)?(?:CA\$|AU\$|[$\u20ac\u00a3\u20b9])\s*(\d[\d,]*(?:\.\d+)?)/i,
-    )?.[1];
-    const numericAmount = currencyAmount ?? normalized.match(/\d[\d,]*(?:\.\d+)?/)?.[0];
-    if (!numericAmount) return null;
-    const parsed = Number.parseFloat(numericAmount.replace(/,/g, ''));
-    return Number.isFinite(parsed) ? parsed : null;
+export function safeProductUrl(value: unknown, productId: string): string | null {
+    if (value === undefined || value === null || value === '') return null;
+    if (typeof value !== 'string' || value.length > 1500) return null;
+    try {
+        const url = new URL(value);
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.port) return null;
+        if (!/^(?:[a-z0-9-]+\.)*aliexpress\.(?:com|us)$/i.test(url.hostname)) return null;
+        const id = /^\/item\/(\d+)\.html$/.exec(url.pathname)?.[1];
+        if (id !== productId) return null;
+        return `https://${url.hostname.toLowerCase()}/item/${productId}.html`;
+    } catch { return null; }
 }
 
-export function parseDiscount(value: string | null): number | null {
-    const match = value?.match(/(\d{1,3})\s*%/);
-    return match ? Number.parseInt(match[1], 10) : null;
+export function safeImageUrl(value: unknown): string | null {
+    if (value === undefined || value === null || value === '') return null;
+    if (typeof value !== 'string' || value.length > 1500) return null;
+    try {
+        const url = new URL(value.startsWith('//') ? `https:${value}` : value);
+        if (!['http:', 'https:'].includes(url.protocol) || url.username || url.password || url.port) return null;
+        if (!/^(?:[a-z0-9-]+\.)*(?:aliexpress-media\.com|alicdn\.com)$/i.test(url.hostname)) return null;
+        url.protocol = 'https:'; url.search = ''; url.hash = '';
+        return url.toString();
+    } catch { return null; }
 }
 
-export function parseRating(value: string | null): number | null {
-    if (!value) return null;
-    const parsed = Number.parseFloat(value);
-    return Number.isFinite(parsed) && parsed >= 0 && parsed <= 5 ? parsed : null;
+export function csvCell(value: unknown): string {
+    let text = value === undefined || value === null ? '' : String(value);
+    if (typeof value === 'string' && (/^[\s\uFEFF]*[=+\-@]/.test(text) || /^[\t\r\n]/.test(text))) text = `'${text}`;
+    return `"${text.replaceAll('"', '""')}"`;
 }
 
-export function parseOrders(value: string | null): number | null {
-    if (!value) return null;
-    const match = value.replace(/,/g, '').match(/([\d.]+)\s*([km])?/i);
-    if (!match) return null;
-    let count = Number.parseFloat(match[1]);
-    if (!Number.isFinite(count)) return null;
-    if (match[2]?.toLowerCase() === 'k') count *= 1_000;
-    if (match[2]?.toLowerCase() === 'm') count *= 1_000_000;
-    return Math.round(count);
+export function markdownText(value: unknown): string {
+    return String(value ?? 'unknown').replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;')
+        .replace(/[\\`*_{}\[\]()#!|]/g, '\\$&').replace(/[\r\n]/g, ' ');
 }
 
-export function currencyFrom(value: string | null): string {
-    if (!value) return 'USD';
-    if (value.includes('CA$')) return 'CAD';
-    if (value.includes('AU$')) return 'AUD';
-    if (/\u20ac|EUR/i.test(value)) return 'EUR';
-    if (/\u00a3|GBP/i.test(value)) return 'GBP';
-    if (/\u20b9|INR|\bRs\.?\b/i.test(value)) return 'INR';
-    return 'USD';
-}
-
-export function normalizeUrl(value: string | null): string | null {
-    if (!value) return null;
-    const trimmed = value.trim();
-    if (!trimmed || trimmed === 'Proxied content') return null;
-    if (trimmed.startsWith('//')) return `https:${trimmed}`;
-    if (trimmed.startsWith('http://')) return `https://${trimmed.slice('http://'.length)}`;
-    return trimmed;
-}
-
-export function productIdFromUrl(value: string): string | null {
-    return value.match(/\/item\/(\d+)\.html/i)?.[1] ?? null;
-}
-
-export async function scrollSearchResults(page: Page, targetCount: number): Promise<void> {
-    let previousCount = await page.locator('a.search-card-item[href*="/item/"]').count();
-    if (previousCount >= targetCount) return;
-
-    let unchangedAttempts = 0;
-    for (let attempt = 0; attempt < 6; attempt += 1) {
-        await page.evaluate(() => window.scrollBy(0, Math.max(window.innerHeight * 1.8, 1200)));
-        await page.waitForTimeout(500 + Math.floor(Math.random() * 300));
-        const currentCount = await page.locator('a.search-card-item[href*="/item/"]').count();
-        if (currentCount >= targetCount) break;
-        unchangedAttempts = currentCount === previousCount ? unchangedAttempts + 1 : 0;
-        if (unchangedAttempts >= 2) break;
-        previousCount = currentCount;
-    }
-    await page.evaluate(() => window.scrollTo(0, 0));
-}
-
-export async function isBlockedPage(page: Page): Promise<boolean> {
-    const state = await page.evaluate(() => ({
-        title: document.title,
-        body: document.body?.innerText?.slice(0, 15_000) ?? '',
-    }));
-    return /captcha|robot|security verification|unusual traffic|access denied|punish/i.test(`${state.title}\n${state.body}`);
-}
-
-export async function extractProducts(
-    page: Page,
-    searchQuery: string,
-    pageNumber: number,
-): Promise<ProductRecord[]> {
-    const rawProducts = await page.evaluate((): RawProduct[] => {
-        const anchors = [...document.querySelectorAll<HTMLAnchorElement>('a.search-card-item[href*="/item/"]')];
-        return anchors.map((card) => {
-            const title = card.querySelector('h3')?.textContent?.trim()
-                || card.querySelector<HTMLElement>('[role="heading"]')?.getAttribute('aria-label')
-                || card.querySelector<HTMLImageElement>('img[alt]')?.alt
-                || '';
-
-            const strictPriceRoot = [...card.querySelectorAll<HTMLElement>('[aria-label]')]
-                .find((element) => /^(?:US\s*)?(?:CA\$|AU\$|[$\u20ac\u00a3\u20b9])\s*\d/i
-                    .test(element.getAttribute('aria-label')?.trim() ?? ''));
-            const originalPrice = card.querySelector<HTMLElement>('[style*="line-through"]')?.textContent?.trim() ?? null;
-            const discount = [...card.querySelectorAll<HTMLElement>('span')]
-                .map((element) => element.textContent?.trim() ?? '')
-                .find((text) => /^-?\s*\d{1,3}%$/.test(text)) ?? null;
-            const rating = [...card.querySelectorAll<HTMLElement>('span')]
-                .find((element) => {
-                    const text = element.textContent?.trim() ?? '';
-                    const nearby = element.parentElement?.parentElement?.textContent ?? '';
-                    return /^[1-5](?:\.\d{1,2})?$/.test(text) && /sold/i.test(nearby);
-                })?.textContent?.trim() ?? null;
-            const orders = [...card.querySelectorAll<HTMLElement>('span')]
-                .map((element) => element.textContent?.trim() ?? '')
-                .find((text) => /sold/i.test(text)) ?? null;
-            const storeName = card.querySelector<HTMLElement>(
-                '[data-spm*="store"], [class*="store-name"], [class*="shop-name"]',
-            )?.textContent?.trim() ?? null;
-            const image = [...card.querySelectorAll<HTMLImageElement>('img[src]')]
-                .find((candidate) => candidate.alt?.trim() === title || /aliexpress-media|alicdn/i.test(candidate.src));
-
-            return {
-                href: card.href,
-                title,
-                priceText: strictPriceRoot?.getAttribute('aria-label')
-                    ?? strictPriceRoot?.textContent?.trim()
-                    ?? null,
-                originalPriceText: originalPrice,
-                discountText: discount,
-                ratingText: rating,
-                ordersText: orders,
-                storeName,
-                imageUrl: image?.src ?? null,
-            };
-        });
-    });
-
-    const records: ProductRecord[] = [];
-    for (const [index, raw] of rawProducts.entries()) {
-        const productId = productIdFromUrl(raw.href);
-        const price = parseMoney(raw.priceText);
-        const originalPrice = parseMoney(raw.originalPriceText);
-        const discountPercent = parseDiscount(raw.discountText);
-        const title = redactSensitiveText(raw.title);
-        if (!productId || !title || price === null) continue;
-        if (originalPrice !== null && discountPercent !== null && discountPercent > 0 && price >= originalPrice) continue;
-
-        records.push({
-            source: 'aliexpress',
-            searchQuery,
-            position: ((pageNumber - 1) * Math.max(rawProducts.length, 1)) + index + 1,
-            productId,
-            title,
-            brand: 'N/A',
-            price,
-            mrp: originalPrice,
-            discountPercent,
-            currency: currencyFrom(raw.priceText),
-            packSize: 'N/A',
-            category: 'N/A',
-            rating: parseRating(raw.ratingText),
-            ratingCount: null,
-            soldCount: parseOrders(raw.ordersText),
-            inStock: null,
-            productUrl: `https://www.aliexpress.com/item/${productId}.html`,
-            imageUrl: normalizeUrl(raw.imageUrl),
-            scrapedAt: new Date().toISOString(),
-        });
-    }
-
-    return records;
-}
+export const round = (value: number): number => Math.round((value + Number.EPSILON) * 1_000_000) / 1_000_000;

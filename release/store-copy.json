@@ -1,0 +1,5 @@
+{
+  "description": "Analyze authorized AliExpress product CSV/JSON exports for US sourcing: shipping-cost gaps, offer-basis checks, hypothetical contribution scenarios and supplied price-change findings. No live scraping, API or proxy. Labeled demos; start/result and platform usage fees apply.",
+  "seoTitle": "AliExpress US Sourcing & Product Cost Analysis",
+  "seoDescription": "Analyze authorized AliExpress CSV/JSON for US cost comparisons, contribution scenarios and price-change findings. No live lookup; usage/result fees apply."
+}

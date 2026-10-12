@@ -1,39 +1,20 @@
-# AliExpress Product Scraper Promotion Notes
+# Positioning draft — US-first, import/demo only
 
-## Positioning
+Audience: US e-commerce operators, purchasing teams and agencies who already have
+authorized product observations. The Actor is not a live product-data supplier.
 
-- Public AliExpress search-result product data for price monitoring and marketplace research.
-- Best first demo: `wireless earbuds`, `maxResults: 1`, `maxPagesPerQuery: 1`, Residential US proxy.
-- Useful fields to show: product title, price, MRP, discount, rating, sold count, product URL, image URL, and scrape timestamp.
-- Good audience: e-commerce operators, marketplace researchers, dropshipping analysts, price-monitoring builders, and catalog-enrichment teams.
+Draft message:
 
-## Short Video Outline
+Analyze your authorized AliExpress product export before deciding what to source.
+Review missing shipping/tax/duty amounts, new-customer offers, hypothetical
+contribution and ad-budget scenarios, and price/delivery changes in supplied
+observations. Export auditable CSV/JSON/Markdown reports. No live scraping, API or
+proxy; labeled synthetic previews are available. Result/start fees and Apify
+platform usage apply separately.
 
-1. Run the one-product `wireless earbuds` example.
-2. Show the dataset table with price, MRP, discount, rating, sold count, image, and product URL.
-3. Export to CSV or Excel.
-4. Mention cost controls: one query, one result first, one page, Residential US proxy, and maximum cost per run.
-
-## LinkedIn Draft
-
-I polished my AliExpress Product Scraper on Apify for marketplace price research.
-
-It exports public search-result product rows with title, price, MRP, discount, rating, sold count, image URL, product URL, and timestamp.
-
-The default run is intentionally tiny: `wireless earbuds`, 1 product, 1 page, Residential US proxy. Good for checking output before scaling a price-monitoring workflow.
-
-## Reddit / Discord Draft
-
-I updated an AliExpress scraper for public product search results.
-
-It saves structured rows with price, MRP, discount, rating, sold count, image URL, and product URL. The default run is only 1 product on 1 search page so you can inspect the output before increasing limits.
-
-It does not scrape accounts, orders, private seller dashboards, messages, emails, or phone numbers.
-
-## Do Not Claim
-
-- Do not claim access to private AliExpress seller dashboards, orders, accounts, messages, or buyer data.
-- Do not claim hidden contact extraction.
-- Do not promise unlimited scraping or anti-bot bypassing.
-- Do not present prices as permanent; AliExpress prices vary by country, promotion, and time.
-- Do not promote large runs without clearly mentioning proxy/platform usage and maximum-cost controls.
+Only promote after the tested import/demo offering is published and its landing
+pages are verified. Do not advertise the currently parked live browser build as
+this new offering. Do not claim live data, lowest prices, verified source rights,
+net-profit guarantees, sales forecasts, exclusive features or competitor uptime.
+Never solicit fake reviews, create fake users/runs or schedule metric-inflation
+activity. No external payment/promotion links in the Store README.

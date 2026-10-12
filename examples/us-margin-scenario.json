@@ -1,0 +1,12 @@
+{
+  "mode": "demo",
+  "demoPreset": "us-margin-scenario",
+  "retailPriceUsd": 20,
+  "marketplaceFeePercent": 10,
+  "paymentFeePercent": 5,
+  "returnsReservePercent": 5,
+  "fixedFeeUsd": 0.5,
+  "fulfillmentCostUsd": 1.5,
+  "adCostUsd": 2,
+  "targetContributionMarginPercent": 25
+}

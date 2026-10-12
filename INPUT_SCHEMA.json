@@ -1,51 +1,126 @@
 {
-  "title": "AliExpress Products Scraper Input",
-  "description": "Search AliExpress for public product catalog and price data. For a low-cost test, use one query, maxResults 1, maxPagesPerQuery 1, and residential proxy.",
+  "title": "AliExpress US Sourcing Analysis — Import or Synthetic Demo",
+  "description": "Analyze your authorized CSV/JSON product observations, or preview clearly labeled synthetic reports. No live AliExpress collection, API key, browser or proxy. One saved product analysis includes its supplied observations; start/platform usage fees also apply.",
   "type": "object",
   "schemaVersion": 1,
-  "required": ["searchQueries"],
+  "required": ["mode"],
   "properties": {
-    "searchQueries": {
-      "title": "Search queries",
-      "description": "One or more product searches. Start with one query for a low-cost test. Duplicate products are removed across queries.",
-      "type": "array",
-      "editor": "stringList",
-      "default": ["wireless earbuds"],
-      "prefill": ["wireless earbuds", "phone case"]
+    "mode": {
+      "title": "Data mode",
+      "type": "string",
+      "editor": "select",
+      "enum": ["demo", "import"],
+      "enumTitles": ["Synthetic demo — not live product data", "Authorized CSV/JSON import — no live lookup"],
+      "prefill": "demo",
+      "description": "Choose explicitly. Old live search/proxy inputs receive a migration error. Demo creates zero dataset rows and product-result events, but start/platform usage fees still apply. Imports require your own processing rights."
+    },
+    "demoPreset": {
+      "title": "Synthetic US preview",
+      "type": "string",
+      "editor": "select",
+      "enum": ["us-cost-comparison", "us-margin-scenario", "us-price-change-review"],
+      "enumTitles": ["Cost gaps and new-customer offers", "Hypothetical contribution scenario", "Supplied price, cost and delivery changes"],
+      "default": "us-cost-comparison",
+      "description": "Invented developer examples only, not real AliExpress offers, history or source access. For the contribution preview, enter a hypothetical retail price and your fee/cost assumptions below."
+    },
+    "importJson": {
+      "title": "Authorized product observations — JSON text",
+      "type": "string",
+      "editor": "textarea",
+      "isSecret": true,
+      "description": "Paste a JSON ARRAY as text. Exactly one of importJson/importCsv, maximum 2 MiB and 1,000 observations. Required per row: productId as an 8–24 digit string, title, observedAt (UTC date/timestamp), numeric price. Do not submit private seller/customer data or credentials. No URLs/files are fetched."
+    },
+    "importCsv": {
+      "title": "Authorized product observations — CSV text",
+      "type": "string",
+      "editor": "textarea",
+      "isSecret": true,
+      "description": "Paste CSV with a header, maximum 2 MiB / 1,000 observations / 60 columns. Use numeric prices without currency symbols, locale decimal commas, ranges or sold-count shorthand. Explicitly provide currency, destination, variant and offer/tax/per-unit context for valid comparisons. See README column guide."
+    },
+    "importSource": {
+      "title": "Your export provider/source label",
+      "type": "string",
+      "editor": "textfield",
+      "description": "Required for import, maximum 160 characters. Identify your authorized feed/export. A label or confirmation does not establish a license; the Actor does not verify source accuracy, rights, freshness or current AliExpress availability. Leave empty for demo."
+    },
+    "authorizedData": {
+      "title": "I have the right to process this export through this paid service",
+      "type": "boolean",
+      "editor": "checkbox",
+      "default": false,
+      "description": "Required TRUE for import only. Confirm only for your own or properly licensed product observations. Mere public visibility, an API account or another scraper's output does not automatically allow resale/redistribution. Never auto-checked by an example."
     },
     "maxResults": {
-      "title": "Maximum products",
-      "description": "Maximum unique product records saved across all searches. Use 1 for the first test run; increase only after results look correct.",
+      "title": "Maximum saved product analyses",
       "type": "integer",
       "editor": "number",
       "minimum": 1,
       "maximum": 500,
-      "default": 1
+      "default": 1,
+      "description": "Import only: one billed dataset row per unique productId, including all its supplied variants and times. First-seen products are selected; omitted products are not exported or billed. This is not a row or per-query cap. Demo creates no product results."
     },
-    "maxPagesPerQuery": {
-      "title": "Pages per query",
-      "description": "Maximum AliExpress result pages opened for each query. Use 1 page for test runs to control proxy and compute usage.",
-      "type": "integer",
+    "retailPriceUsd": {
+      "title": "Hypothetical resale price — USD per unit",
+      "type": "number",
       "editor": "number",
-      "minimum": 1,
-      "maximum": 10,
-      "default": 1
+      "minimum": 0.01,
+      "maximum": 1000000,
+      "description": "Optional scenario assumption, NOT a forecast. Same entered retail price applies to all selected quotes. Calculated only for explicit US / USD / per-unit / standard offers with known shipping, additional tax and duty. No currency conversion or legal tax/tariff estimates."
     },
-    "proxyConfiguration": {
-      "title": "Proxy configuration",
-      "description": "Residential US proxies are recommended because AliExpress blocks direct/datacenter traffic. Proxy traffic is billed as platform usage.",
-      "type": "object",
-      "editor": "proxy",
-      "default": {
-        "useApifyProxy": true,
-        "apifyProxyGroups": ["RESIDENTIAL"],
-        "apifyProxyCountry": "US"
-      },
-      "prefill": {
-        "useApifyProxy": true,
-        "apifyProxyGroups": ["RESIDENTIAL"],
-        "apifyProxyCountry": "US"
-      }
+    "marketplaceFeePercent": {
+      "title": "Assumed marketplace fee — % of resale price",
+      "type": "number", "editor": "number", "minimum": 0, "maximum": 99, "default": 0,
+      "description": "Your assumption, not current Amazon/Shopify/TikTok rates. Default 0 is an assumption, not proof that fees are absent. Combined marketplace/payment/returns reserve must be below 100%."
+    },
+    "paymentFeePercent": {
+      "title": "Assumed payment fee — % of resale price",
+      "type": "number", "editor": "number", "minimum": 0, "maximum": 99, "default": 0,
+      "description": "Your scenario assumption. Default 0; enter the applicable value for your workflow. Not a current rate lookup."
+    },
+    "returnsReservePercent": {
+      "title": "Assumed returns reserve — % of resale price",
+      "type": "number", "editor": "number", "minimum": 0, "maximum": 99, "default": 0,
+      "description": "Your modeled reserve, not a predicted return rate. Default 0. Overhead and income taxes are not modeled."
+    },
+    "fixedFeeUsd": {
+      "title": "Assumed fixed fee — USD per unit",
+      "type": "number", "editor": "number", "minimum": 0, "maximum": 1000000, "default": 0,
+      "description": "User-entered scenario fee. Default 0, not a verified absence of costs."
+    },
+    "fulfillmentCostUsd": {
+      "title": "Assumed fulfillment — USD per unit",
+      "type": "number", "editor": "number", "minimum": 0, "maximum": 1000000, "default": 0,
+      "description": "Per-unit scenario cost beyond the imported quote. Do not double-count costs already included in imported shipping. Default 0."
+    },
+    "adCostUsd": {
+      "title": "Assumed advertising — USD per sold unit",
+      "type": "number", "editor": "number", "minimum": 0, "maximum": 1000000, "default": 0,
+      "description": "Your acquisition-cost assumption, not a conversion or sales prediction. Default 0."
+    },
+    "targetContributionMarginPercent": {
+      "title": "Scenario contribution target — % of resale price",
+      "type": "number", "editor": "number", "minimum": 0, "maximum": 95, "default": 25,
+      "description": "Used for the hypothetical ad-budget threshold. Contribution is not net profit or a guarantee the product will sell. Negative margins and negative affordable ad budgets remain visible."
+    },
+    "priceChangeThresholdPercent": {
+      "title": "Supplied price change review threshold — %",
+      "type": "number", "editor": "number", "minimum": 0.01, "maximum": 1000, "default": 5,
+      "description": "Findings for rises or falls between matching supplied standard quotes. Raw unrounded change decides the threshold. Zero baselines and changed context do not produce percent alerts. No live monitoring or notification."
+    },
+    "landedCostRiseThresholdPercent": {
+      "title": "Entered landed-cost rise review threshold — %",
+      "type": "number", "editor": "number", "minimum": 0.01, "maximum": 1000, "default": 10,
+      "description": "Only when both supplied quotes have all required cost components and matching context. Never fills missing shipping, tax or duty with zero."
+    },
+    "deliveryIncreaseThresholdDays": {
+      "title": "Supplied maximum delivery increase threshold — days",
+      "type": "integer", "editor": "number", "minimum": 1, "maximum": 3650, "default": 3,
+      "description": "Review increased deliveryDaysMax between comparable supplied quotes. The estimate is user-provided and is not a delivery promise."
+    },
+    "comparisonWindowDays": {
+      "title": "Maximum comparison time gap — days",
+      "type": "integer", "editor": "number", "minimum": 1, "maximum": 3650, "default": 30,
+      "description": "Larger supplied time gaps remain explicit but do not trigger numerical price/cost/delivery/stock findings. No hidden persistent history or schedule is created."
     }
   }
 }

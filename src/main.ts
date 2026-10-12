@@ -1,139 +1,23 @@
-import { Actor, log } from 'apify';
-import { PlaywrightCrawler } from 'crawlee';
-import { normalizeInput } from './input.js';
-import { buildSearchUrl, extractProducts, isBlockedPage, scrollSearchResults } from './routes.js';
-import type { ActorInput, RequestData } from './types.js';
+import { Actor } from 'apify';
+import { InputError } from './input.js';
+import { runWorkflow } from './workflow.js';
+import { PRODUCT_EVENT, saveConfirmedProduct } from './billing.js';
 
-await Actor.init();
-
-const input = normalizeInput((await Actor.getInput<ActorInput>()) ?? {});
-const proxyConfiguration = await Actor.createProxyConfiguration(input.proxyConfiguration);
-
-const seenProductIds = new Set<string>();
-let savedCount = 0;
-let spendingLimitReached = false;
-let billingError: Error | null = null;
-let failedRequestCount = 0;
-
-const requests = input.searchQueries.flatMap((searchQuery) => Array.from(
-    { length: input.maxPagesPerQuery },
-    (_, index) => ({
-        url: buildSearchUrl(searchQuery, index + 1),
-        userData: { searchQuery, pageNumber: index + 1 } satisfies RequestData,
-    }),
-));
-
-const crawler = new PlaywrightCrawler({
-    proxyConfiguration,
-    headless: true,
-    maxConcurrency: 1,
-    minConcurrency: 1,
-    maxRequestRetries: 2,
-    maxSessionRotations: 2,
-    retryOnBlocked: true,
-    navigationTimeoutSecs: 60,
-    requestHandlerTimeoutSecs: 120,
-    maxRequestsPerCrawl: requests.length,
-    sessionPoolOptions: {
-        maxPoolSize: 10,
-        blockedStatusCodes: [],
-        sessionOptions: { maxUsageCount: 10 },
-    },
-    browserPoolOptions: { useFingerprints: true },
-    launchContext: {
-        useChrome: true,
-        launchOptions: {
-            args: ['--disable-blink-features=AutomationControlled', '--no-sandbox', '--disable-dev-shm-usage'],
-        },
-    },
-    preNavigationHooks: [async ({ page }, gotoOptions) => {
-        page.setDefaultTimeout(12_000);
-        if (gotoOptions) gotoOptions.waitUntil = 'domcontentloaded';
-        await page.route('**/*', async (route) => {
-            const resourceType = route.request().resourceType();
-            if (resourceType === 'image' || resourceType === 'media' || resourceType === 'font') {
-                await route.abort();
-                return;
-            }
-            await route.continue();
-        }).catch(() => undefined);
-    }],
-    requestHandler: async ({ page, request, session }) => {
-        if (savedCount >= input.maxResults || spendingLimitReached) return;
-
-        const { searchQuery, pageNumber } = request.userData as RequestData;
-        await page.waitForSelector('a.search-card-item[href*="/item/"]', { timeout: 30_000 }).catch(() => null);
-
-        if (await isBlockedPage(page)) {
-            session?.markBad();
-            throw new Error(`AliExpress challenge page detected for ${request.url}`);
+Actor.main(async () => {
+    const raw = (await Actor.getInput()) ?? {};
+    try {
+        await runWorkflow(raw, {
+            canSave: () => Actor.getChargingManager().calculateMaxEventChargeCountWithinLimit(PRODUCT_EVENT) > 0,
+            save: (record) => saveConfirmedProduct(record, { manager: Actor.getChargingManager(), push: (item, event) => Actor.pushData(item, event) }),
+            write: async (key, value, contentType) => { await Actor.setValue(key, value, contentType ? { contentType } : undefined); },
+            status: async (message) => { await Actor.setStatusMessage(message); },
+        });
+    } catch (error) {
+        if (error instanceof InputError) {
+            await Actor.setValue('RUN_STATUS', { outcome: 'invalid_input', code: error.code, message: error.message,
+                savedProductCount: 0, productResultEventCount: 0, upstreamRequestCount: 0, liveSourceVerified: false });
+            await Actor.setStatusMessage(error.message);
         }
-
-        await scrollSearchResults(page, Math.max(1, input.maxResults - savedCount));
-        const products = await extractProducts(page, searchQuery, pageNumber);
-        if (products.length === 0) {
-            if (pageNumber === 1) throw new Error(`No product cards found for "${searchQuery}".`);
-            log.info(`No additional products found for "${searchQuery}" on page ${pageNumber}.`);
-            return;
-        }
-
-        for (const product of products) {
-            if (savedCount >= input.maxResults || spendingLimitReached) break;
-            const seenKey = product.productId ?? product.productUrl ?? `${product.source}:${product.searchQuery}:${product.position}:${product.title}`;
-            if (seenProductIds.has(seenKey)) continue;
-
-            let chargeResult;
-            try {
-                // Push and charge together. The SDK omits records that would exceed
-                // the user's maximum charge, preventing unbilled scraping work.
-                chargeResult = await Actor.pushData(product, 'product-scraped');
-            } catch (error) {
-                billingError = new Error(`Unable to save and charge for product: ${String(error)}`);
-                spendingLimitReached = true;
-                log.error(billingError.message);
-                await crawler.autoscaledPool?.abort();
-                break;
-            }
-
-            const recordWasSaved = chargeResult.chargedCount > 0 || !chargeResult.eventChargeLimitReached;
-            if (recordWasSaved) {
-                seenProductIds.add(seenKey);
-                savedCount += 1;
-            }
-
-            if (chargeResult.eventChargeLimitReached) {
-                spendingLimitReached = true;
-                await Actor.setStatusMessage(`Stopped at the user's spending limit after ${savedCount} products`);
-                log.info('User spending limit reached; stopping before more requests are made.');
-                await crawler.autoscaledPool?.abort();
-                break;
-            }
-        }
-
-        await Actor.setStatusMessage(`Saved ${savedCount}/${input.maxResults} AliExpress products`);
-        log.info(`Processed "${searchQuery}" page ${pageNumber}: ${products.length} cards, ${savedCount} total saved.`);
-    },
-    failedRequestHandler: async ({ request }, error) => {
-        failedRequestCount += 1;
-        log.error(`AliExpress request failed after retries: ${request.url}`, { error: String(error) });
-    },
+        throw error;
+    }
 });
-
-await crawler.run(requests);
-
-if (billingError) {
-    throw billingError;
-}
-
-if (savedCount === 0 && failedRequestCount === requests.length) {
-    throw new Error(`All ${failedRequestCount} AliExpress requests failed; no products were saved.`);
-}
-
-if (savedCount === 0 && !spendingLimitReached) {
-    throw new Error('No AliExpress product records were scraped. Try a broader search query or check proxy access.');
-}
-
-await Actor.setStatusMessage(`Finished with ${savedCount} unique products`);
-log.info(`AliExpress scrape finished with ${savedCount} unique products.`);
-
-await Actor.exit();

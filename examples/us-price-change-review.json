@@ -1,0 +1,8 @@
+{
+  "mode": "demo",
+  "demoPreset": "us-price-change-review",
+  "priceChangeThresholdPercent": 5,
+  "landedCostRiseThresholdPercent": 10,
+  "deliveryIncreaseThresholdDays": 3,
+  "comparisonWindowDays": 30
+}

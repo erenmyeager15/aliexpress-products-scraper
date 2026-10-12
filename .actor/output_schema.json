@@ -1,14 +1,15 @@
 {
   "actorOutputSchemaVersion": 1,
-  "title": "AliExpress Products Scraper Output",
-  "description": "Structured AliExpress product records with search queries, positions, product IDs, titles, brands, prices, discounts, ratings, sold counts, availability, image URLs, product URLs, and scraped timestamps.",
+  "title": "US Sourcing Reports — Authorized Import or Labeled Synthetic Preview",
+  "description": "Check RUN_STATUS for mode, completeness and provenance. Demo is synthetic and has zero dataset rows. Imports analyze supplied observations only. No live AliExpress request, source/rights verification, persistent history or automatic notifications.",
   "type": "object",
   "properties": {
-    "results": {
-      "type": "string",
-      "title": "AliExpress product records",
-      "description": "Clean dataset items containing public AliExpress product catalog, price, discount, rating, sold-count, availability, image, and URL data.",
-      "template": "{{links.apiDefaultDatasetUrl}}/items"
-    }
+    "status": { "type": "string", "title": "Run status and completeness", "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/RUN_STATUS" },
+    "report": { "type": "string", "title": "JSON sourcing analysis — check source label", "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/REPORT" },
+    "comparisonCsv": { "type": "string", "title": "Flat cost/scenario/comparison CSV", "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/COMPARISON.csv" },
+    "findingsCsv": { "type": "string", "title": "Evidence-linked change findings CSV", "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/FINDINGS.csv" },
+    "qualityCsv": { "type": "string", "title": "Cost gaps and context quality CSV", "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/QUALITY.csv" },
+    "markdown": { "type": "string", "title": "Readable sourcing report and assumptions", "template": "{{links.apiDefaultKeyValueStoreUrl}}/records/REPORT.md" },
+    "savedProducts": { "type": "string", "title": "Saved product analyses — empty in demo", "template": "{{links.apiDefaultDatasetUrl}}/items" }
   }
 }

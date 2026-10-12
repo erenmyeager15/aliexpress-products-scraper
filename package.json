@@ -1,6 +1,6 @@
 {
   "name": "aliexpress-products-scraper",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "type": "module",
   "scripts": {
     "build": "tsc",
@@ -10,15 +10,13 @@
     "audit:prod": "npm audit --omit=dev --audit-level=high"
   },
   "dependencies": {
-    "apify": "^3.4.4",
-    "crawlee": "^3.15.3",
-    "playwright": "^1.55.1"
+    "apify": "^3.4.4"
   },
   "devDependencies": {
     "typescript": "^5.9.2"
   },
   "overrides": {
-    "brace-expansion": "5.0.8"
+    "basic-ftp": "6.2.3"
   },
   "engines": {
     "node": ">=20"

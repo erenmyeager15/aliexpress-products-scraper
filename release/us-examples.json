@@ -1,0 +1,26 @@
+{
+  "actorName": "aliexpress-products-scraper",
+  "examples": [
+    {
+      "name": "us-sourcing-cost-comparison",
+      "title": "US Sourcing Cost Comparison — Synthetic Preview",
+      "description": "Preview invented US/USD product quotes with known shipping versus cost gaps and a new-customer offer. No live AliExpress products or source access; zero dataset rows/result events. Start and platform usage fees still apply. For real analysis, use your authorized CSV/JSON export in the full Actor input.",
+      "inputFile": "examples/us-cost-comparison.json",
+      "visibleFields": ["demoPreset"]
+    },
+    {
+      "name": "us-sourcing-contribution-scenario",
+      "title": "US Product Contribution Scenario — Synthetic Preview",
+      "description": "Compare invented US/USD cost scenarios with explicit resale, fee, returns, fulfillment and ad assumptions. Contribution is not net profit or a sales forecast. No live lookup or result events; start/platform usage fees apply. Analyze a real authorized export through the full Actor input.",
+      "inputFile": "examples/us-margin-scenario.json",
+      "visibleFields": ["demoPreset", "retailPriceUsd", "marketplaceFeePercent", "paymentFeePercent", "returnsReservePercent", "fixedFeeUsd", "fulfillmentCostUsd", "adCostUsd", "targetContributionMarginPercent"]
+    },
+    {
+      "name": "us-sourcing-price-change-review",
+      "title": "US Product Price Change Review — Synthetic Preview",
+      "description": "Inspect invented supplied price/cost/delivery/stock changes and offer-basis drift with configurable thresholds. Not live monitoring, persisted history or automated notifications. Zero result events/dataset rows; start/platform usage fees apply. Real analysis needs your own authorized export.",
+      "inputFile": "examples/us-price-change-review.json",
+      "visibleFields": ["demoPreset", "priceChangeThresholdPercent", "landedCostRiseThresholdPercent", "deliveryIncreaseThresholdDays", "comparisonWindowDays"]
+    }
+  ]
+}
